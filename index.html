@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a237e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Delhi Metro">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="icons/icon-192.svg">
+<link rel="apple-touch-icon" href="icons/icon-192.svg">
+<title>Delhi Metro Route Planner</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif}
+body{background:#e8eaf0;min-height:100vh;padding:20px}
+.container{max-width:940px;margin:0 auto}
+.header{background:linear-gradient(135deg,#1a237e,#283593);color:#fff;padding:28px 32px;border-radius:16px 16px 0 0;position:relative}
+.header h1{font-size:24px;letter-spacing:.5px}
+.header p{font-size:14px;opacity:.85;margin-top:4px}
+.footer{text-align:center;color:#889;font-size:12px;margin-top:20px;padding:16px}
+.footer .credit{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px;font-size:13px;color:#555}
+.footer .credit .avatar{width:26px;height:26px;border-radius:50%;border:2px solid #ddd;background:#ffc107;overflow:hidden;flex-shrink:0}
+.footer .credit .avatar img{width:100%;height:100%;object-fit:cover}
+.card{background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.12);overflow:hidden;margin-top:24px}
+.card-body{padding:28px 32px}
+.form-row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end}
+.form-group{flex:1;min-width:200px;position:relative}
+.form-group label{display:block;font-size:13px;font-weight:600;color:#455;margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px}
+.search-wrap{position:relative}
+.search-wrap input{width:100%;padding:12px 14px;border:2px solid #dde;border-radius:10px;font-size:15px;background:#f8f9fb;transition:border .2s,box-shadow .2s;outline:none}
+.search-wrap input:focus{border-color:#1a237e;background:#fff;box-shadow:0 0 0 4px rgba(26,35,126,.1)}
+.search-wrap input::placeholder{color:#aab}
+.search-wrap input.ok{border-color:#2e7d32;background:#f1f8e9}
+.suggestions{display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:2px solid #dde;border-top:none;border-radius:0 0 10px 10px;max-height:320px;overflow-y:auto;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.suggestions.open{display:block}
+.suggestion{padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center}
+.suggestion:last-child{border-bottom:none;border-radius:0 0 8px 8px}
+.suggestion:hover,.suggestion.active{background:#e8f0fe}
+.suggestion .lines{display:flex;gap:4px;flex-shrink:0;margin-left:8px}
+.suggestion .lines span{display:inline-block;width:10px;height:10px;border-radius:50%}
+.swap-btn{display:flex;align-items:flex-end;padding-bottom:4px}
+.swap-btn button{width:44px;height:44px;border:2px solid #dde;border-radius:50%;background:#f8f9fb;cursor:pointer;font-size:20px;color:#1a237e;transition:all .2s;display:flex;align-items:center;justify-content:center}
+.swap-btn button:hover{background:#1a237e;color:#fff;border-color:#1a237e}
+.btn-search{width:100%;margin-top:20px;padding:14px;background:linear-gradient(135deg,#1a237e,#3949ab);color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;transition:transform .15s,box-shadow .15s;letter-spacing:.3px}
+.btn-search:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(26,35,126,.35)}
+.btn-search:active{transform:translateY(0)}
+.result{display:none;margin-top:24px}
+.result.show{display:block;animation:fadeSlide .4s ease}
+@keyframes fadeSlide{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px}
+.stat{background:#f8f9fb;border-radius:12px;padding:16px;text-align:center;border:1px solid #eee}
+.stat .num{font-size:24px;font-weight:700;color:#1a237e}
+.stat .lbl{font-size:11px;color:#778;margin-top:4px;text-transform:uppercase;letter-spacing:.3px}
+.segment{background:#f8f9fb;border-radius:12px;margin-bottom:14px;border-left:5px solid;overflow:hidden}
+.segment-header{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:rgba(0,0,0,.03);border-bottom:1px solid rgba(0,0,0,.06);flex-wrap:wrap;gap:6px}
+.segment-header .line-name{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.segment-header .direction{font-size:13px;color:#445;font-weight:600}
+.segment-header .direction .platform{font-size:12px;font-weight:400;color:#666;margin-left:6px}
+.segment-header .count{font-size:12px;color:#778}
+.seg-station{display:flex;align-items:center;padding:7px 18px;font-size:14px;gap:12px}
+.seg-station:not(:last-child){border-bottom:1px solid #f0f0f0}
+.station-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.station-dot.start-end{width:14px;height:14px;border:3px solid;background:#fff}
+.station-name{flex:1}
+.interchange-info{background:#fff8e1;margin:0 18px 10px;padding:12px 14px;border-radius:8px;font-size:13px;border-left:3px solid #ffa000}
+.interchange-info strong{color:#e65100}
+.interchange-info .plat-change{display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap}
+.interchange-info .plat-change .pbadge{display:inline-block;padding:3px 10px;border-radius:5px;font-weight:700;font-size:13px;color:#fff}
+.route-summary{background:#e8f0fe;border-radius:12px;padding:16px 20px;margin-bottom:20px;font-size:14px;color:#1a237e;line-height:1.6}
+.route-summary .lines-used{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.error-msg{background:#fce4e4;color:#c62828;padding:14px 20px;border-radius:10px;margin-top:16px;font-size:14px;display:none}
+.line-tag{display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;color:#fff}
+.clear-btn{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:18px;color:#aab;cursor:pointer;display:none;padding:4px 8px;border-radius:4px;line-height:1}
+.clear-btn:hover{color:#c62828;background:#fce4e4}
+.search-wrap.has-value .clear-btn{display:block}
+@media(max-width:600px){
+body{padding:12px}
+.header{padding:20px}
+.header h1{font-size:20px}
+.card-body{padding:20px}
+.stats{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <div class="header">
+      <h1>Delhi Metro Route Planner</h1>
+      <p>Search stations, find routes, fares & travel time</p>
+    </div>
+    <div class="card-body">
+      <div class="form-row">
+        <div class="form-group" id="sourceGroup">
+          <label>From (Source)</label>
+          <div class="search-wrap" id="sourceWrap">
+            <input type="text" id="source" placeholder="Type station name..." autocomplete="off">
+            <button class="clear-btn" data-for="source">&times;</button>
+            <div class="suggestions" id="sourceSuggest"></div>
+          </div>
+        </div>
+        <div class="swap-btn">
+          <button id="swapBtn" title="Swap stations">&#x21C5;</button>
+        </div>
+        <div class="form-group" id="destGroup">
+          <label>To (Destination)</label>
+          <div class="search-wrap" id="destWrap">
+            <input type="text" id="dest" placeholder="Type station name..." autocomplete="off">
+            <button class="clear-btn" data-for="dest">&times;</button>
+            <div class="suggestions" id="destSuggest"></div>
+          </div>
+        </div>
+      </div>
+      <button class="btn-search" id="searchBtn">Find Route</button>
+      <div class="error-msg" id="errorMsg"></div>
+      <div class="result" id="result"></div>
+    </div>
+  </div>
+  <div class="footer">
+    <div class="credit">
+      <span class="avatar"><img src="avi.jpg" alt="Avi"></span>
+      <span>Created by <strong>Avi Pandey</strong></span>
+    </div>
+    <div>Data as of 2026 | Sources: DMRC, Wikipedia | For reference only</div>
+  </div>
+</div>
+
+<script>
+// ===== LINE METADATA =====
+const LINE_META = {
+  red:     { id:'red',     name:'Red Line',          color:'#e53935', termA:'Shaheed Sthal', termB:'Rithala' },
+  yellow:  { id:'yellow',  name:'Yellow Line',       color:'#fdd835', termA:'Samaypur Badli', termB:'Millennium City Centre Gurugram' },
+  blue:    { id:'blue',    name:'Blue Line',          color:'#1e88e5', termA:'Dwarka Sector 21', termB:'Noida Electronic City' },
+  'blue-branch': { id:'blue-branch', name:'Blue Line Branch', color:'#1e88e5', termA:'Yamuna Bank', termB:'Vaishali' },
+  green:   { id:'green',   name:'Green Line',         color:'#43a047', termA:'Inderlok', termB:'Brigadier Hoshiyar Singh' },
+  'green-branch': { id:'green-branch', name:'Green Line Branch', color:'#43a047', termA:'Ashok Park Main', termB:'Kirti Nagar' },
+  violet:  { id:'violet',  name:'Violet Line',        color:'#8e24aa', termA:'Kashmere Gate', termB:'Raja Nahar Singh' },
+  pink:    { id:'pink',    name:'Pink Line',          color:'#e91e90', termA:'Majlis Park', termB:'Shiv Vihar' },
+  magenta: { id:'magenta', name:'Magenta Line',       color:'#d81b60', termA:'Janakpuri West', termB:'Botanical Garden' },
+  orange:  { id:'orange',  name:'Airport Express',    color:'#ff6f00', termA:'New Delhi', termB:'Yashobhoomi Dwarka Sector 25' },
+  grey:    { id:'grey',    name:'Grey Line',          color:'#546e7a', termA:'Dwarka', termB:'Dhansa Bus Stand' }
+};
+
+// ===== LINE STATIONS (complete as of 2026) =====
+const LINE_STATIONS = {
+  red: [
+    'Shaheed Sthal','Hindon River','Arthala','Mohan Nagar','Shyam Park',
+    'Major Mohit Sharma Rajendra Nagar','Raj Bagh','Shaheed Nagar','Dilshad Garden',
+    'Jhilmil','Mansarovar Park','Shahdara','Welcome','Seelampur','Shastri Park',
+    'Kashmere Gate','Tis Hazari','Pulbangash','Pratap Nagar','Shastri Nagar',
+    'Inderlok','Kanhaiya Nagar','Keshav Puram','Netaji Subhash Place',
+    'Kohat Enclave','Madhuban Chowk','Rohini','Dr Baba Saheb Ambedkar Hospital','Rithala'
+  ],
+  yellow: [
+    'Samaypur Badli','Rohini Sector 18-19','Haiderpur Badli Mor',
+    'Jahangirpuri','Adarsh Nagar','Azadpur','Model Town','Guru Tegh Bahadur Nagar',
+    'Vishwavidyalaya','Vidhan Sabha','Civil Lines','Kashmere Gate',
+    'Chandni Chowk','Chawri Bazar','New Delhi','Rajiv Chowk',
+    'Patel Chowk','Central Secretariat','Seva Teerth','Lok Kalyan Marg',
+    'Jor Bagh','Dilli Haat INA','AIIMS','Green Park','Hauz Khas',
+    'Malviya Nagar','Saket','Qutab Minar','Chhatarpur','Sultanpur',
+    'Ghitorni','Arjan Garh','Guru Dronacharya','Sikanderpur','MG Road',
+    'IFFCO Chowk','Millennium City Centre Gurugram'
+  ],
+  blue: [
+    'Dwarka Sector 21','Dwarka Sector 8','Dwarka Sector 9','Dwarka Sector 10',
+    'Dwarka Sector 11','Dwarka Sector 12','Dwarka Sector 13','Dwarka Sector 14',
+    'Dwarka','Dwarka Mor','Nawada','Uttam Nagar West','Uttam Nagar East',
+    'Janakpuri West','Janakpuri East','Tilak Nagar','Subhash Nagar',
+    'Tagore Garden','Rajouri Garden','Ramesh Nagar','Moti Nagar','Kirti Nagar',
+    'Shadipur','Patel Nagar','Rajendra Place','Karol Bagh','Jhandewalan',
+    'Ramakrishna Ashram Marg','Rajiv Chowk','Barakhamba Road','Mandi House',
+    'Supreme Court','Indraprastha','Yamuna Bank','Akshardham','Mayur Vihar I',
+    'Mayur Vihar Extension','New Ashok Nagar','Noida Sector 15','Noida Sector 16',
+    'Noida Sector 18','Botanical Garden','Golf Course','Noida City Centre',
+    'Noida Sector 34','Noida Sector 52','Noida Sector 61','Noida Sector 59',
+    'Noida Sector 62','Noida Electronic City'
+  ],
+  'blue-branch': [
+    'Yamuna Bank','Laxmi Nagar','Nirman Vihar','Preet Vihar',
+    'Karkarduma','Anand Vihar','Kaushambi','Vaishali'
+  ],
+  green: [
+    'Inderlok','Ashok Park Main','Punjabi Bagh','Punjabi Bagh West',
+    'Shivaji Park','Madipur','Paschim Vihar East','Paschim Vihar West',
+    'Peeragarhi','Udyog Nagar','Maharaja Surajmal Stadium','Nangloi',
+    'Nangloi Railway Station','Rajdhani Park','Mundka','Mundka Industrial Area',
+    'Ghevra','Tikri Kalan','Tikri Border','Pandit Shree Ram Sharma',
+    'Bahadurgarh City','Brigadier Hoshiyar Singh'
+  ],
+  'green-branch': [
+    'Ashok Park Main','Satguru Ram Singh Marg','Kirti Nagar'
+  ],
+  violet: [
+    'Kashmere Gate','Lal Qila','Jama Masjid','Delhi Gate','ITO',
+    'Mandi House','Janpath','Central Secretariat','Khan Market',
+    'Jawaharlal Nehru Stadium','Jangpura','Lajpat Nagar','Moolchand',
+    'Kailash Colony','Nehru Place','Kalkaji Mandir','Govindpuri',
+    'Harkesh Nagar Okhla','Jasola Apollo','Sarita Vihar','Mohan Estate',
+    'Tughlakabad Station','Badarpur Border','Sarai','NHPC Chowk',
+    'Mewla Maharajpur','Sector 28','Badkhal Mor','Old Faridabad',
+    'Neelam Chowk Ajronda','Bata Chowk','Escorts Mujesar','Sant Surdas Sihi',
+    'Raja Nahar Singh'
+  ],
+  pink: [
+    'Majlis Park','Azadpur','Shalimar Bagh','Netaji Subhash Place',
+    'Shakurpur','Punjabi Bagh West','ESI Basaidarapur','Rajouri Garden',
+    'Mayapuri','Naraina Vihar','Delhi Cantonment',
+    'Durgabai Deshmukh South Campus','Sir Vishweshwaraiah Moti Bagh',
+    'Bhikaji Cama Place','Sarojini Nagar','Dilli Haat INA','South Extension',
+    'Lajpat Nagar','Vinobapuri','Ashram','Sarai Kale Khan Nizamuddin',
+    'Mayur Vihar I','Shree Ram Mandir Mayur Vihar','Trilokpuri Sanjay Lake',
+    'East Vinod Nagar Mayur Vihar II','Mandawali West Vinod Nagar',
+    'IP Extension','Anand Vihar','Karkarduma','Karkarduma Court',
+    'Krishna Nagar','East Azad Nagar','Welcome','Jaffrabad',
+    'Maujpur Babarpur','Gokulpuri','Johri Enclave','Shiv Vihar'
+  ],
+  magenta: [
+    'Majlis Park','Bhalaswa','Haiderpur Badli Mor','Haiderpur Village',
+    'Uttari Pitampura Prashant Vihar','Madhuban Chowk','Deepali Chowk',
+    'Pushpanjali','Mangolpur Kalan West Enclave','Mangolpuri',
+    'Peeragarhi','Paschim Vihar','Keshopur','Krishna Park Extension',
+    'Janakpuri West','Dabri Mor Janakpuri South','Dashrathpuri','Palam',
+    'Sadar Bazar Cantonment','Terminal 1 IGI Airport','Shankar Vihar',
+    'Vasant Vihar','Munirka','RK Puram','IIT','Hauz Khas',
+    'Panchsheel Park','Chirag Delhi','Greater Kailash','Nehru Enclave',
+    'Kalkaji Mandir','Okhla NSIC','Sukhdev Vihar','Jamia Millia Islamia',
+    'Okhla Vihar','Jasola Vihar Shaheen Bagh','Kalindi Kunj',
+    'Okhla Bird Sanctuary','Botanical Garden'
+  ],
+  orange: [
+    'New Delhi','Shivaji Stadium','Dhaula Kuan','Delhi Aerocity',
+    'Terminal 3 IGI Airport','Dwarka Sector 21','Yashobhoomi Dwarka Sector 25'
+  ],
+  grey: [
+    'Dwarka','Nangli','Najafgarh','Dhansa Bus Stand'
+  ]
+};
+
+// ===== BUILD GRAPH =====
+function buildGraph() {
+  const graph = {};
+  const stationLines = {};
+  const lineStations = {};
+
+  for (const [lid, stations] of Object.entries(LINE_STATIONS)) {
+    lineStations[lid] = stations;
+    for (let i = 0; i < stations.length; i++) {
+      const s = stations[i];
+      if (!graph[s]) graph[s] = new Set();
+      if (!stationLines[s]) stationLines[s] = new Set();
+      stationLines[s].add(lid);
+      if (i > 0) graph[s].add(stations[i - 1]);
+      if (i < stations.length - 1) graph[s].add(stations[i + 1]);
+    }
+  }
+  return { graph, stationLines, lineStations };
+}
+
+const { graph, stationLines, lineStations } = buildGraph();
+const allStations = Object.keys(graph).sort((a,b) => a.localeCompare(b));
+
+// ===== PLATFORM / DIRECTION HELPERS =====
+function getPlatform(lineId, fromStation, toStation) {
+  const arr = lineStations[lineId];
+  if (!arr) return '—';
+  const fi = arr.indexOf(fromStation);
+  const ti = arr.indexOf(toStation);
+  if (fi === -1 || ti === -1) return '—';
+  // Platform 1 = towards termA (index 0), Platform 2 = towards termB (last index)
+  // Convention: if we're heading towards a higher index, it's Platform 1; lower index = Platform 2
+  return ti > fi ? 'Platform 1' : 'Platform 2';
+}
+
+function getDirection(lineId, stationA, stationB) {
+  const arr = lineStations[lineId];
+  if (!arr || arr.length < 2) return '';
+  const ai = arr.indexOf(stationA);
+  const bi = arr.indexOf(stationB);
+  if (ai === -1 || bi === -1) return '';
+  const meta = LINE_META[lineId];
+  if (!meta) return '';
+  const terminus = bi > ai ? meta.termB : meta.termA;
+  return terminus;
+}
+
+function getTerminalName(lineId, stationA, stationB) {
+  const arr = lineStations[lineId];
+  if (!arr) return '';
+  const ai = arr.indexOf(stationA);
+  const bi = arr.indexOf(stationB);
+  if (ai === -1 || bi === -1) return '';
+  const meta = LINE_META[lineId];
+  if (!meta) return '';
+  return bi > ai ? meta.termB : meta.termA;
+}
+
+// ===== INTERCHANGE PLATFORM GUIDANCE =====
+
+
+// ===== AUTOCOMPLETE =====
+function setupAutocomplete(inputId, suggestId) {
+  const input = document.getElementById(inputId);
+  const suggest = document.getElementById(suggestId);
+  const wrap = input.closest('.search-wrap');
+  let activeIdx = -1;
+
+  function close() { suggest.classList.remove('open'); activeIdx = -1; }
+
+  function render(prefix) {
+    const q = prefix.trim();
+    suggest.innerHTML = '';
+    activeIdx = -1;
+    if (q.length < 1) { close(); return; }
+    const items = allStations.filter(s => s.toLowerCase().startsWith(q.toLowerCase()));
+    if (items.length === 0) { close(); return; }
+    for (let i = 0; i < Math.min(items.length, 15); i++) {
+      const s = items[i];
+      const div = document.createElement('div');
+      div.className = 'suggestion';
+      div.dataset.value = s;
+      const lines = stationLines[s] || new Set();
+      let dots = '';
+      for (const lid of lines) {
+        const m = LINE_META[lid];
+        if (m) dots += '<span style="background:' + m.color + '"></span>';
+      }
+      // Show full station name
+      div.innerHTML = s + '<span class="lines">' + dots + '</span>';
+      div.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        select(s);
+      });
+      suggest.appendChild(div);
+    }
+    suggest.classList.add('open');
+  }
+
+  function select(val) {
+    input.value = val;
+    wrap.classList.add('has-value');
+    input.classList.add('ok');
+    close();
+    input.dispatchEvent(new Event('input'));
+  }
+
+  input.addEventListener('input', () => {
+    const v = input.value.trim();
+    wrap.classList.toggle('has-value', v.length > 0);
+    if (allStations.includes(v)) {
+      input.classList.add('ok');
+      close();
+    } else {
+      input.classList.remove('ok');
+      if (v.length >= 1) render(v);
+      else close();
+    }
+  });
+
+  input.addEventListener('keydown', (e) => {
+    const items = suggest.querySelectorAll('.suggestion');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (items.length === 0) return;
+      activeIdx = Math.min(activeIdx + 1, items.length - 1);
+      items.forEach((el, i) => el.classList.toggle('active', i === activeIdx));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (items.length === 0) return;
+      activeIdx = Math.max(activeIdx - 1, -1);
+      items.forEach((el, i) => el.classList.toggle('active', i === activeIdx));
+    } else if (e.key === 'Enter' && activeIdx >= 0 && items[activeIdx]) {
+      e.preventDefault();
+      select(items[activeIdx].dataset.value);
+    } else if (e.key === 'Escape') {
+      close();
+    }
+  });
+
+  input.addEventListener('blur', () => setTimeout(close, 200));
+  input.addEventListener('focus', () => {
+    const v = input.value.trim();
+    if (v.length >= 1 && !allStations.includes(v)) render(v);
+  });
+
+  return input;
+}
+
+const srcInput = setupAutocomplete('source', 'sourceSuggest');
+const dstInput = setupAutocomplete('dest', 'destSuggest');
+
+// Clear buttons
+document.querySelectorAll('.clear-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const inp = document.getElementById(btn.dataset.for);
+    inp.value = '';
+    inp.classList.remove('ok');
+    inp.closest('.search-wrap').classList.remove('has-value');
+    inp.focus();
+    inp.dispatchEvent(new Event('input'));
+  });
+});
+
+// Swap
+document.getElementById('swapBtn').addEventListener('click', () => {
+  const tmp = srcInput.value;
+  srcInput.value = dstInput.value;
+  dstInput.value = tmp;
+  [srcInput, dstInput].forEach(inp => {
+    inp.closest('.search-wrap').classList.toggle('has-value', inp.value.trim().length > 0);
+  });
+});
+
+// ===== BFS ROUTE FINDER =====
+function findRoute(source, dest) {
+  if (source === dest) return { path: [source] };
+  const queue = [[source]];
+  const visited = new Set([source]);
+  while (queue.length > 0) {
+    const path = queue.shift();
+    const last = path[path.length - 1];
+    const neighbors = graph[last] || new Set();
+    for (const n of neighbors) {
+      if (!visited.has(n)) {
+        visited.add(n);
+        const newPath = [...path, n];
+        if (n === dest) return { path: newPath };
+        queue.push(newPath);
+      }
+    }
+  }
+  return null;
+}
+
+// ===== BUILD SEGMENTS =====
+function buildSegments(path) {
+  const segs = [];
+  let seg = { line: null, stations: [] };
+
+  for (let i = 0; i < path.length; i++) {
+    const s = path[i];
+    const currLines = stationLines[s] || new Set();
+    if (i === 0) {
+      const nextLines = stationLines[path[1]] || new Set();
+      const common = [...currLines].filter(l => nextLines.has(l));
+      seg.line = common.length > 0 ? common[0] : [...currLines][0];
+      seg.stations.push(s);
+    } else {
+      const prevLines = stationLines[path[i-1]] || new Set();
+      const common = [...currLines].filter(l => prevLines.has(l));
+      const bestLine = common.length > 0 ? common[0] : [...currLines][0];
+      if (bestLine !== seg.line) {
+        segs.push(seg);
+        seg = { line: bestLine, stations: [s] };
+      } else {
+        seg.stations.push(s);
+      }
+    }
+  }
+  segs.push(seg);
+  return segs;
+}
+
+// ===== FARE =====
+function calcFare(numStations) {
+  const km = Math.round(numStations * 1.15 * 10) / 10;
+  let fare;
+  if (km <= 2) fare = 11;
+  else if (km <= 5) fare = 21;
+  else if (km <= 12) fare = 32;
+  else if (km <= 21) fare = 43;
+  else if (km <= 32) fare = 54;
+  else fare = 64;
+  return { km, fare, smartCard: Math.round(fare * 0.9) };
+}
+
+function calcTime(numStations, numSegs) {
+  const run = Math.round(numStations * 2.5);
+  const wait = Math.round((numSegs - 1) * 7);
+  return { run, wait, total: run + wait };
+}
+
+// ===== RENDER RESULT =====
+function renderResult(path) {
+  const segments = buildSegments(path);
+  const numSt = path.length;
+  const numSegs = segments.length;
+  const fare = calcFare(numSt);
+  const time = calcTime(numSt, numSegs);
+  const changes = numSegs - 1;
+  const usedLines = [...new Set(segments.map(s => s.line))];
+
+  let lineTagsHtml = usedLines.map(lid => {
+    const m = LINE_META[lid];
+    return m ? '<span class="line-tag" style="background:' + m.color + '">' + m.name + '</span>' : '';
+  }).join(' ');
+
+  let html = `
+    <div class="stats">
+      <div class="stat"><div class="num">${numSt}</div><div class="lbl">Stations</div></div>
+      <div class="stat"><div class="num">&#8377;${fare.fare}</div><div class="lbl">Token Fare</div></div>
+      <div class="stat"><div class="num">&#8377;${fare.smartCard}</div><div class="lbl">Smart Card</div></div>
+      <div class="stat"><div class="num">${time.total >= 60 ? Math.floor(time.total/60)+'h ' : ''}${time.total%60}m</div><div class="lbl">Est. Time</div></div>
+    </div>
+    <div class="route-summary">
+      <strong>${path[0]}</strong> &rarr; <strong>${path[path.length-1]}</strong><br>
+      ~${fare.km} km &bull; Running: ${time.run}min ${changes > 0 ? '&bull; ' + changes + ' interchange' + (changes > 1 ? 's' : '') + ' (wait ~' + time.wait + 'min)' : '&bull; Direct route'}
+      <div class="lines-used">${lineTagsHtml}</div>
+    </div>`;
+
+  for (let si = 0; si < segments.length; si++) {
+    const seg = segments[si];
+    const meta = LINE_META[seg.line];
+    const color = meta ? meta.color : '#888';
+    const dirTerminus = getDirection(seg.line, seg.stations[0], seg.stations[Math.min(1, seg.stations.length-1)]);
+    const segCount = seg.stations.length;
+
+    html += `<div class="segment" style="border-color:${color}">
+      <div class="segment-header">
+        <span class="line-name" style="color:${color}">${meta ? meta.name : seg.line}</span>
+        <span class="direction">Towards ${dirTerminus}</span>
+        <span class="count">${segCount} station${segCount > 1 ? 's' : ''}</span>
+      </div>
+      <div class="segment-stations">`;
+
+    for (let i = 0; i < seg.stations.length; i++) {
+      const st = seg.stations[i];
+      const isStart = si === 0 && i === 0;
+      const isEnd = si === segments.length - 1 && i === seg.stations.length - 1;
+      const isLastOfSeg = i === seg.stations.length - 1 && !isEnd;
+      const isFirstOfSeg = i === 0 && si > 0;
+
+      // Boarding platform info at source
+      let boardInfo = '';
+      if (isStart && seg.stations.length >= 2) {
+        const plat = getPlatform(seg.line, seg.stations[0], seg.stations[1]);
+        boardInfo = '<div style="margin-top:4px;"><span class="line-tag" style="background:' + color + ';font-size:10px;">' + (meta?meta.name:'') + '</span> <span style="font-size:12px;font-weight:600;color:#2e7d32;">Board &ndash; ' + plat + ' towards ' + dirTerminus + '</span></div>';
+      }
+
+      // Change info on the LAST station of segment
+      let changeInfo = '';
+      if (isLastOfSeg) {
+        const nextSeg = segments[si + 1];
+        const nextMeta = LINE_META[nextSeg.line];
+        const nextColor = nextMeta ? nextMeta.color : '#888';
+        const toPlat = getPlatform(nextSeg.line, nextSeg.stations[0], nextSeg.stations[1] || nextSeg.stations[0]);
+        const nextDir = getDirection(nextSeg.line, nextSeg.stations[0], nextSeg.stations[Math.min(1, nextSeg.stations.length-1)]);
+        changeInfo = '<div style="margin-top:6px;padding:8px 10px;background:#fff8e1;border-radius:6px;border-left:3px solid ' + nextColor + ';">';
+        changeInfo += '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">';
+        changeInfo += '<span style="font-size:11px;font-weight:700;color:#e65100;">CHANGE</span>';
+        changeInfo += '<span style="font-size:11px;">to</span>';
+        changeInfo += '<span class="line-tag" style="background:' + nextColor + ';font-size:10px;">' + (nextMeta?nextMeta.name:'') + '</span>';
+        changeInfo += '<span style="font-size:12px;font-weight:600;">' + toPlat + '</span>';
+        changeInfo += '<span style="font-size:12px;font-weight:600;color:#333;">towards ' + nextDir + '</span>';
+        changeInfo += '</div></div>';
+      }
+
+      html += `<div class="seg-station" style="${isLastOfSeg ? 'padding-bottom:10px;' : ''}">
+        <div class="station-dot${isStart || isEnd ? ' start-end' : ''}" style="border-color:${color};${!(isStart || isEnd) ? 'background:' + color : ''}"></div>
+        <span class="station-name">
+          <strong>${st}</strong>
+          ${boardInfo}
+          ${changeInfo}
+        </span>
+      </div>`;
+    }
+
+    html += `</div></div>`;
+  }
+
+  return html;
+}
+
+// ===== SEARCH BUTTON =====
+document.getElementById('searchBtn').addEventListener('click', () => {
+  const src = srcInput.value.trim();
+  const dst = dstInput.value.trim();
+  const errEl = document.getElementById('errorMsg');
+  const resEl = document.getElementById('result');
+
+  errEl.style.display = 'none';
+  resEl.classList.remove('show');
+  resEl.style.display = 'none';
+
+  if (!src || !dst) {
+    errEl.textContent = 'Please enter both source and destination stations.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (!allStations.includes(src)) {
+    errEl.textContent = 'Source station "' + src + '" not found. Select a valid station from the suggestions.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (!allStations.includes(dst)) {
+    errEl.textContent = 'Destination station "' + dst + '" not found. Select a valid station from the suggestions.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (src === dst) {
+    errEl.textContent = 'Source and destination cannot be the same station.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const route = findRoute(src, dst);
+  if (!route) {
+    errEl.textContent = 'No route found between these stations.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  resEl.innerHTML = renderResult(route.path);
+  resEl.style.display = 'block';
+  setTimeout(() => resEl.classList.add('show'), 10);
+});
+
+// Enter key triggers search
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.target.id === 'source' || e.target.id === 'dest')) {
+    document.getElementById('searchBtn').click();
+  }
+});
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+</script>
+</body>
+</html>
